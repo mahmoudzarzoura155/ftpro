@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox, filedialog
+from tkinter import ttk, messagebox
 import cv2
 import time
 import csv
@@ -51,7 +51,6 @@ class EmotionDetectionGUI:
         self.session_time = tk.StringVar(value="Session: 00:00")
         self.dominant_emotion = tk.StringVar(value="Dominant: ---")
         self.system_status = tk.StringVar(value="System: Ready")
-        self.log_enabled = tk.BooleanVar(value=True)
 
         # Log File
         self.project_dir = Path(__file__).parent
@@ -117,10 +116,6 @@ class EmotionDetectionGUI:
             state="disabled",
         )
         self.stop_button.pack(fill="x", pady=5)
-
-        ttk.Checkbutton(
-            control_frame, text="Enable CSV Logging", variable=self.log_enabled
-        ).pack(anchor="w", pady=5)
 
         # Live Status
         status_frame = ttk.LabelFrame(right_frame, text="Live Status", padding=10)
@@ -424,9 +419,6 @@ class EmotionDetectionGUI:
     # Save CSV
     def write_csv(self, emotion, confidence, x, y, w, h):
 
-        if not self.log_enabled.get():
-            return
-
         new_file = not self.log_file.exists()
 
         try:
@@ -502,35 +494,23 @@ class EmotionDetectionGUI:
     # Save Log
     def save_log(self):
 
-        if not self.log_file.exists():
-
-            messagebox.showinfo("Save Log", "No CSV log exists yet.")
-
-            return
-
-        file_path = filedialog.asksaveasfilename(
-            title="Save Emotion Log",
-            defaultextension=".csv",
-            filetypes=[("CSV files", "*.csv"), ("All files", "*.*")],
-        )
-
-        if not file_path:
-            return
-
         try:
+            self.log_dir.mkdir(exist_ok=True)
 
-            with open(self.log_file, "r", encoding="utf-8") as source:
+            if not self.log_file.exists():
+                with open(self.log_file, "w", newline="", encoding="utf-8") as file:
+                    writer = csv.writer(file)
+                    writer.writerow(
+                        ["timestamp", "emotion", "confidence", "x", "y", "w", "h"]
+                    )
 
-                data = source.read()
-
-            with open(file_path, "w", encoding="utf-8") as target:
-
-                target.write(data)
-
-            messagebox.showinfo("Saved", "Emotion log saved successfully.")
+            messagebox.showinfo(
+                "Saved",
+                f"Emotion log saved successfully.\n\nLocation:\n{self.log_file}",
+            )
+            self.system_status.set("System: Log saved")
 
         except Exception as e:
-
             messagebox.showerror("Save Error", str(e))
 
     # Close App
