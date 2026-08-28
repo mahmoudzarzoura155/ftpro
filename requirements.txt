@@ -1,7 +1,6 @@
+```text
 opencv-python>=4.8.0
-
 fer>=22.5.1
-
 tensorflow>=2.12.0
-
-moviepy>=1.0.3
+Pillow>=9.0.0
+```

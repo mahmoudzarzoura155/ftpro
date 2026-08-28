@@ -1,55 +1,82 @@
-"""
-Quick smoke test for Test Case #1 in the Testing Plan:
-"Face detected correctly — run with 3 different people, varied lighting."
-
-This script isolates JUST face detection (no emotion model, no FER/TensorFlow
-dependency) so you can confirm the camera and OpenCV pipeline work before
-troubleshooting the heavier emotion-classification stage in main.py.
-
-Usage:
-    python test_face_detection.py [--camera 0]
-
-Press 'q' to quit.
-"""
-
-import argparse
 import cv2
+from fer import FER
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Face detection smoke test")
-    parser.add_argument("--camera", type=int, default=0)
-    args = parser.parse_args()
 
-    cascade_path = cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
-    face_cascade = cv2.CascadeClassifier(cascade_path)
+    detector = FER(mtcnn=True)
 
-    cap = cv2.VideoCapture(args.camera)
-    if not cap.isOpened():
-        raise RuntimeError(f"Could not open camera index {args.camera}")
+    camera = cv2.VideoCapture(0)
 
-    print("Face detection smoke test running. Press 'q' to quit.")
+    if not camera.isOpened():
+        print("Could not open camera.")
+        return
+
+    camera.set(cv2.CAP_PROP_FRAME_WIDTH, 800)
+    camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 540)
+
+    window = "Face Detection Test"
+
+    cv2.namedWindow(window, cv2.WINDOW_NORMAL)
+    cv2.resizeWindow(window, 800, 540)
 
     while True:
-        ok, frame = cap.read()
+
+        ok, frame = camera.read()
+
         if not ok:
-            print("Failed to read frame.")
             break
 
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(60, 60))
+        frame = cv2.flip(frame, 1)
 
-        for (x, y, w, h) in faces:
-            cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 200, 0), 2)
+        try:
+            faces = detector.detect_emotions(frame)
 
-        status = f"Faces detected: {len(faces)}"
-        cv2.putText(frame, status, (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 200, 0), 2)
+        except Exception as e:
+            print(f"Detection Error: {e}")
+            break
 
-        cv2.imshow("Face Detection Test - press q to quit", frame)
+        for index, face in enumerate(faces):
+
+            x, y, w, h = face["box"]
+
+            cv2.rectangle(
+                frame,
+                (x, y),
+                (x + w, y + h),
+                (0, 220, 0), 
+                2,
+            )
+
+            cv2.putText(
+                frame,
+                f"Face {index + 1}",
+                (x, max(25, y - 10)),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.65,
+                (0, 220, 0),
+                2,
+            )
+
+        cv2.putText(
+            frame,
+            f"Faces detected: {len(faces)}",
+            (20, 35),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.75,
+            (0, 255, 255),
+            2,
+        )
+
+        cv2.imshow(window, frame)
+
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
-    cap.release()
+        if cv2.getWindowProperty(window, cv2.WND_PROP_VISIBLE) < 1:
+            break
+
+    camera.release()
     cv2.destroyAllWindows()
 
 
